@@ -20,7 +20,7 @@ public class Categoria extends Base {
     public void setDescripcion(String descripcion) {
         this.descripcion = descripcion;
     }
-//toString
+
     @Override
     public String toString() {
         return "Categoria #" + getId() + " - " + nombre + " (" + descripcion + ")";
