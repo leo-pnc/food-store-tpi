@@ -7,20 +7,22 @@ public class Producto extends Base{
     private int stock;
     private String imagen;
     private Boolean disponible;
-    private Categoria categria;
+    private Categoria categoria;
 
     //Constructor vacio
     public Producto(){
+        super();
     }
     //Constructor con todos los parametros
-    public Producto(String nombre, Double precio, String descripcion, int stock, String imagen, Boolean disponible, Categoria categria){
-        this.nombre = getNombre();
-        this.precio = getPrecio();
-        this.descripcion= getDescripcion();
-        this.stock = getStock();
-        this.imagen = getImagen();
-        this.disponible = getDisponible();
-        this.categria = getCategria();
+    public Producto(String nombre, Double precio, String descripcion, int stock, String imagen, Boolean disponible, Categoria categoria){
+        super();
+        this.nombre = nombre;
+        this.precio = precio;
+        this.descripcion= descripcion;
+        this.stock = stock;
+        this.imagen = imagen;
+        this.disponible = disponible;
+        this.categoria = categoria;
     }
 
     //Getters & Setters
@@ -43,6 +45,12 @@ public class Producto extends Base{
     public Boolean getDisponible() {return disponible;}
     public void setDisponible(Boolean disponible) {this.disponible = disponible;}
 
-    public Categoria getCategria() {return categria;}
-    public void setCategria(Categoria categria) {this.categria = categria;}
+    public Categoria getCategoria() {return categoria;}
+    public void setCategoria(Categoria categoria) {this.categoria = categoria;}
+
+    @Override
+    public String toString() {
+        String catNombre = (categoria != null) ? categoria.getNombre() : "Sin categoría";
+        return "Producto [ID=" + getId() + ", Nombre=" + nombre + ", Precio=$" + precio + ", Stock=" + stock + ", Disponible=" + disponible + ", Categoria=" + catNombre + "]";
+    }
 }
