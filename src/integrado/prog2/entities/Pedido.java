@@ -5,6 +5,7 @@ import integrado.prog2.enums.FormaPago;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.time.LocalDateTime;
 
 public class Pedido extends Base implements Calculable {
     private LocalDate fecha;
@@ -16,6 +17,7 @@ public class Pedido extends Base implements Calculable {
 
     public Pedido() {
         super();
+        this.fecha = LocalDate.now();
         this.detalles = new ArrayList<>();
         this.total = 0.0;
     }
@@ -30,6 +32,17 @@ public class Pedido extends Base implements Calculable {
         this.total = 0.0;
     }
 
+    // Constructor completo (con campos de Base, necesario para recuperar datos con JDBC)
+    public Pedido(Long id, boolean eliminado, LocalDateTime createdAt, LocalDate fecha, Estado estado, Double total, FormaPago formaPago, Usuario usuario, List<DetallePedido> detalles) {
+        super(id, eliminado, createdAt);
+        this.fecha = fecha;
+        this.estado = estado;
+        this.total = total;
+        this.formaPago = formaPago;
+        this.usuario = usuario;
+        this.detalles = detalles != null ? detalles : new ArrayList<>();
+    }
+
     //arma el detalle y recalcula el total
     public void addDetallePedido(int cantidad, Double precioUnitario, Producto producto) {
         DetallePedido detalle = new DetallePedido(cantidad, cantidad * precioUnitario, producto);
@@ -37,7 +50,7 @@ public class Pedido extends Base implements Calculable {
         calcularTotal();
     }
 
-    public DetallePedido findeDetallePedidoByProducto(Producto producto) {
+    public DetallePedido findDetallePedidoByProducto(Producto producto) {
         for (DetallePedido d : detalles) {
             if (d.getProducto().getId().equals(producto.getId())) {
                 return d;
@@ -47,7 +60,7 @@ public class Pedido extends Base implements Calculable {
     }
 
     public void deleteDetallePedidoByProducto(Producto producto) {
-        DetallePedido d = findeDetallePedidoByProducto(producto);
+        DetallePedido d = findDetallePedidoByProducto(producto);
         if (d != null) {
             detalles.remove(d);
             calcularTotal();
