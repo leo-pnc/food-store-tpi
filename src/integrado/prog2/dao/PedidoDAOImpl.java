@@ -17,11 +17,11 @@ import java.util.List;
 public class PedidoDAOImpl implements IPedidoDAO {
 
     private final IProductoDAO productoDAO;
-    private final IUsuarioDAO usuarioDAO; // Integrado de forma definitiva con el contrato de Bruno
+    private final IUsuarioDAO usuarioDAO;
 
     public PedidoDAOImpl() {
         this.productoDAO = new ProductoDAOImpl();
-        this.usuarioDAO = new UsuarioDAOImpl(); // Instanciamos la clase de Bruno de forma directa
+        this.usuarioDAO = new UsuarioDAOImpl();
     }
 
     @Override
@@ -32,11 +32,8 @@ public class PedidoDAOImpl implements IPedidoDAO {
         Connection conn = null;
         try {
             conn = ConexionDB.getConexion();
-
-            // TRANSACCIONES: Desactivamos el autocommit para controlar la transacción manualmente (Requisito de Rúbrica)
             conn.setAutoCommit(false);
 
-            // 1. Insertamos la cabecera del Pedido
             try (PreparedStatement psPedido = conn.prepareStatement(sqlPedido, Statement.RETURN_GENERATED_KEYS)) {
                 psPedido.setDate(1, java.sql.Date.valueOf(pedido.getFecha()));
                 psPedido.setString(2, pedido.getEstado().name());
@@ -52,7 +49,6 @@ public class PedidoDAOImpl implements IPedidoDAO {
 
                 psPedido.executeUpdate();
 
-                // Recuperamos el ID autogenerado del Pedido
                 try (ResultSet rs = psPedido.getGeneratedKeys()) {
                     if (rs.next()) {
                         pedido.setId(rs.getLong(1));
@@ -60,7 +56,6 @@ public class PedidoDAOImpl implements IPedidoDAO {
                 }
             }
 
-            // 2. Insertamos todos sus DetallePedido asociados
             try (PreparedStatement psDetalle = conn.prepareStatement(sqlDetalle, Statement.RETURN_GENERATED_KEYS)) {
                 for (DetallePedido dp : pedido.getDetalles()) {
                     psDetalle.setInt(1, dp.getCantidad());
@@ -70,13 +65,12 @@ public class PedidoDAOImpl implements IPedidoDAO {
                         throw new SQLException("No se puede guardar un detalle sin un producto válido.");
                     }
                     psDetalle.setLong(3, dp.getProducto().getId());
-                    psDetalle.setLong(4, pedido.getId()); // Enlazamos el detalle con el ID de pedido recién generado
+                    psDetalle.setLong(4, pedido.getId());
                     psDetalle.setBoolean(5, dp.isEliminado());
                     psDetalle.setTimestamp(6, Timestamp.valueOf(dp.getCreatedAt()));
 
                     psDetalle.executeUpdate();
 
-                    // Recuperamos el ID del detalle
                     try (ResultSet rs = psDetalle.getGeneratedKeys()) {
                         if (rs.next()) {
                             dp.setId(rs.getLong(1));
@@ -85,12 +79,10 @@ public class PedidoDAOImpl implements IPedidoDAO {
                 }
             }
 
-            // COMMIT: Si todo anduvo excelente (pedido y todos los detalles), confirmamos la transacción
             conn.commit();
             System.out.println("¡Pedido #" + pedido.getId() + " y todos sus detalles guardados con éxito mediante transacciones!");
 
         } catch (SQLException e) {
-            // ROLLBACK: Si algo falló (ej. error en un detalle, falta de stock), deshacemos absolutamente todo
             if (conn != null) {
                 try {
                     conn.rollback();
@@ -101,7 +93,6 @@ public class PedidoDAOImpl implements IPedidoDAO {
             }
             System.err.println("Detalle del error en base de datos: " + e.getMessage());
         } finally {
-            // Siempre restauramos el autocommit para no afectar otras consultas
             if (conn != null) {
                 try {
                     conn.setAutoCommit(true);
@@ -115,20 +106,28 @@ public class PedidoDAOImpl implements IPedidoDAO {
     @Override
     public Pedido obtenerPorId(Long id) {
         String sql = "SELECT * FROM pedido WHERE id = ? AND eliminado = 0";
+        Pedido pedido = null;
         try {
             Connection conn = ConexionDB.getConexion();
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, id);
                 try (ResultSet rs = ps.executeQuery()) {
                     if (rs.next()) {
-                        return mapearPedido(rs);
+                        // 1. Cargamos solo los campos básicos del pedido y liberamos el ResultSet
+                        pedido = mapearPedidoBasico(rs);
                     }
                 }
+            }
+
+            // 2. Con el ResultSet cerrado, cargamos el Usuario y sus detalles asociados secuencialmente (Integrado con el de Bruno)
+            if (pedido != null) {
+                pedido.setUsuario(usuarioDAO.obtenerPorId(pedido.getUsuario().getId()));
+                pedido.setDetalles(cargarDetallesDePedido(pedido.getId()));
             }
         } catch (SQLException e) {
             System.err.println("Error al obtener pedido por ID: " + e.getMessage());
         }
-        return null;
+        return pedido;
     }
 
     @Override
@@ -137,13 +136,19 @@ public class PedidoDAOImpl implements IPedidoDAO {
         String sql = "SELECT * FROM pedido WHERE eliminado = 0";
         try {
             Connection conn = ConexionDB.getConexion();
+
             try (PreparedStatement ps = conn.prepareStatement(sql);
                  ResultSet rs = ps.executeQuery()) {
-
                 while (rs.next()) {
-                    lista.add(mapearPedido(rs));
+                    lista.add(mapearPedidoBasico(rs));
                 }
             }
+
+            for (Pedido p : lista) {
+                p.setUsuario(usuarioDAO.obtenerPorId(p.getUsuario().getId()));
+                p.setDetalles(cargarDetallesDePedido(p.getId()));
+            }
+
         } catch (SQLException e) {
             System.err.println("Error al listar todos los pedidos: " + e.getMessage());
         }
@@ -173,14 +178,13 @@ public class PedidoDAOImpl implements IPedidoDAO {
 
     @Override
     public void eliminar(Long id) {
-        // BAJA LÓGICA: Seteamos el campo 'eliminado' en 1 (true) en el pedido y en sus detalles
         String sqlPedido = "UPDATE pedido SET eliminado = 1 WHERE id = ?";
         String sqlDetalles = "UPDATE detalle_pedido SET eliminado = 1 WHERE pedido_id = ?";
 
         Connection conn = null;
         try {
             conn = ConexionDB.getConexion();
-            conn.setAutoCommit(false); // Transacción para asegurar la baja lógica en cascada
+            conn.setAutoCommit(false);
 
             try (PreparedStatement psPedido = conn.prepareStatement(sqlPedido)) {
                 psPedido.setLong(1, id);
@@ -212,22 +216,27 @@ public class PedidoDAOImpl implements IPedidoDAO {
         String sql = "SELECT * FROM pedido WHERE usuario_id = ? AND eliminado = 0";
         try {
             Connection conn = ConexionDB.getConexion();
+
             try (PreparedStatement ps = conn.prepareStatement(sql)) {
                 ps.setLong(1, usuarioId);
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) {
-                        lista.add(mapearPedido(rs));
+                        lista.add(mapearPedidoBasico(rs));
                     }
                 }
             }
+
+            for (Pedido p : lista) {
+                p.setUsuario(usuarioDAO.obtenerPorId(p.getUsuario().getId()));
+                p.setDetalles(cargarDetallesDePedido(p.getId()));
+            }
+
         } catch (SQLException e) {
             System.err.println("Error al listar pedidos por usuario: " + e.getMessage());
         }
         return lista;
     }
-
-    // Método mapeador auxiliar: Reconstruye el Pedido, su Usuario asociado y carga su lista de DetallePedido desde la DB
-    private Pedido mapearPedido(ResultSet rs) throws SQLException {
+    private Pedido mapearPedidoBasico(ResultSet rs) throws SQLException {
         Long id = rs.getLong("id");
         boolean eliminado = rs.getBoolean("eliminado");
         LocalDateTime createdAt = rs.getTimestamp("created_at").toLocalDateTime();
@@ -238,20 +247,19 @@ public class PedidoDAOImpl implements IPedidoDAO {
 
         Long usuarioId = rs.getLong("usuario_id");
 
-        // Recuperamos el objeto Usuario correspondiente usando el DAO de Bruno (Integración completa)
-        Usuario usuario = usuarioDAO.obtenerPorId(usuarioId);
+        // Creamos un Usuario dummy temporal únicamente con el ID
+        Usuario usuarioDummy = new Usuario();
+        usuarioDummy.setId(usuarioId);
 
-        // Recuperamos todos los DetallePedido asociados a este Pedido desde la base de datos (Composición 1:N)
-        List<DetallePedido> detalles = cargarDetallesDePedido(id);
-
-        return new Pedido(id, eliminado, createdAt, fecha, estado, total, formaPago, usuario, detalles);
+        return new Pedido(id, eliminado, createdAt, fecha, estado, total, formaPago, usuarioDummy, new ArrayList<>());
     }
 
-    // Carga los detalles vinculados a un pedido específico y les asocia su Producto correspondiente
+    // Carga los detalles vinculados a un pedido de forma secuencial y en dos etapas para evitar colisiones de ResultSet
     private List<DetallePedido> cargarDetallesDePedido(Long pedidoId) throws SQLException {
         List<DetallePedido> detalles = new ArrayList<>();
         String sql = "SELECT * FROM detalle_pedido WHERE pedido_id = ? AND eliminado = 0";
         Connection conn = ConexionDB.getConexion();
+
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, pedidoId);
             try (ResultSet rs = ps.executeQuery()) {
@@ -261,14 +269,20 @@ public class PedidoDAOImpl implements IPedidoDAO {
                     LocalDateTime createdAt = rs.getTimestamp("created_at").toLocalDateTime();
                     int cantidad = rs.getInt("cantidad");
                     Double subtotal = rs.getDouble("subtotal");
-
                     Long productoId = rs.getLong("producto_id");
-                    Producto producto = productoDAO.obtenerPorId(productoId); // Recuperamos el producto asociado del detalle (Relación N:1)
 
-                    detalles.add(new DetallePedido(id, eliminado, createdAt, cantidad, subtotal, producto));
+                    Producto productoDummy = new Producto();
+                    productoDummy.setId(productoId);
+
+                    detalles.add(new DetallePedido(id, eliminado, createdAt, cantidad, subtotal, productoDummy));
                 }
             }
         }
+
+        for (DetallePedido dp : detalles) {
+            dp.setProducto(productoDAO.obtenerPorId(dp.getProducto().getId()));
+        }
+
         return detalles;
     }
 }
