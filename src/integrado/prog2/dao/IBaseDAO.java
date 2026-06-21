@@ -3,6 +3,7 @@ import java.util.List;
 public interface IBaseDAO<T> {
     void crear(T entidad);
     T obtenerPorId(Long id);
+    List<T> listarTodos();
     void actualizar(T entidad);
     void eliminar(Long id);
 }
