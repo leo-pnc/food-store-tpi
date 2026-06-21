@@ -1,5 +1,7 @@
 package integrado.prog2.entities;
 
+import java.time.LocalDateTime;
+
 public class Producto extends Base{
     private String nombre;
     private Double precio;
@@ -19,6 +21,17 @@ public class Producto extends Base{
         this.nombre = nombre;
         this.precio = precio;
         this.descripcion= descripcion;
+        this.stock = stock;
+        this.imagen = imagen;
+        this.disponible = disponible;
+        this.categoria = categoria;
+    }
+    //Constructor de 10 parametros:
+    public Producto(Long id, boolean eliminado, LocalDateTime createdAt, String nombre, Double precio, String descripcion, int stock, String imagen, Boolean disponible, Categoria categoria) {
+        super(id, eliminado, createdAt);
+        this.nombre = nombre;
+        this.precio = precio;
+        this.descripcion = descripcion;
         this.stock = stock;
         this.imagen = imagen;
         this.disponible = disponible;
