@@ -1,6 +1,6 @@
 package integrado.prog2.entities;
-
 import integrado.prog2.enums.Rol;
+import java.time.LocalDateTime;
 
 
 public class Usuario extends Base {
@@ -11,8 +11,22 @@ public class Usuario extends Base {
     private String contrasenia;
     private Rol rol;
 
+    // Constructor vacío
+    public Usuario() {
+        super();
+    }
     public Usuario(String nombre, String apellido, String mail, String celular, String contrasenia, Rol rol) {
         super();
+        this.nombre = nombre;
+        this.apellido = apellido;
+        this.mail = mail;
+        this.celular = celular;
+        this.contrasenia = contrasenia;
+        this.rol = rol;
+    }
+    //Constructor completo de 9 parametros
+    public Usuario(Long id, boolean eliminado, LocalDateTime createdAt, String nombre, String apellido, String mail, String celular, String contrasenia, Rol rol) {
+        super(id, eliminado, createdAt);
         this.nombre = nombre;
         this.apellido = apellido;
         this.mail = mail;
