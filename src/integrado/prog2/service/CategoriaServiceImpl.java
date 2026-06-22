@@ -6,12 +6,12 @@ import integrado.prog2.entities.Categoria;
 
 import java.util.List;
 
-public class CategoriaServiceImpl implements IBaseService<Categoria> {
+public class CategoriaServiceImpl implements IGenericService<Categoria> {
 
     private final ICategoriaDAO dao = new CategoriaDAOImpl();
 
     @Override
-    public void crear(Categoria categoria) {
+    public void guardar(Categoria categoria) {
         // el nombre no puede ir vacio
         if (categoria.getNombre() == null || categoria.getNombre().trim().isEmpty()) {
             throw new IllegalArgumentException("el nombre de la categoria no puede estar vacio");

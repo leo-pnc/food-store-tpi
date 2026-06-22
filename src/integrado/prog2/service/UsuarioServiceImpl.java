@@ -7,12 +7,12 @@ import integrado.prog2.exception.EmailDuplicadoException;
 
 import java.util.List;
 
-public class UsuarioServiceImpl implements IBaseService<Usuario> {
+public class UsuarioServiceImpl implements IGenericService<Usuario> {
 
     private final IUsuarioDAO dao = new UsuarioDAOImpl();
 
     @Override
-    public void crear(Usuario usuario) {
+    public void guardar(Usuario usuario) {
         if (usuario.getMail() == null || usuario.getMail().trim().isEmpty()) {
             throw new IllegalArgumentException("el mail no puede estar vacio");
         }
