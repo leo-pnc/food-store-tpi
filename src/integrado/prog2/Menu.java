@@ -24,11 +24,6 @@ public class Menu {
     private final UsuarioServiceImpl usuarioService = new UsuarioServiceImpl();
     private final PedidoServiceImpl pedidoService = new PedidoServiceImpl();
 
-    // arranco el menu desde aca, asi no toco el Main
-    public static void main(String[] args) {
-        new Menu().iniciar();
-    }
-
     public void iniciar() {
         int opcion;
         do {
